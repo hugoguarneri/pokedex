@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Bootstrap demo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
+    <style>
+        .card-hover:hover {
+            cursor: pointer;
+            transform: scale(1.02) rotate(1.2deg);
+        }
+        .label {
+            min-width: 100px !important;
+            display: inline-block !important
+        }
+    </style>
+
+</head>
+  <body style="background-color: #f1f4f8;">    
+
+    <!-- nav bar -->
+    <nav class="navbar bg-danger mb-4">
+        <div class="container-fluid">
+            <div class="navbar-header" >
+                <a class="navbar-brand text-bg-danger" href="?page=1">
+                    <span>
+                        <img class="mb-1" src="https://upload.wikimedia.org/wikipedia/commons/5/53/Pok%C3%A9_Ball_icon.svg"
+                            alt="pokeball" width="40">
+                    </span>
+                    Pokedex
+                </a>
+            </div>
+            <form class="d-flex" role="search">
+                <input class="form-control me-2" type="search" name="name" placeholder="Search" aria-label="Search">
+                <button class="btn btn-outline-light" type="submit">Search</button>
+            </form>
+        </div>
+    </nav>
+    <!-- end nav bar -->
+    
+    <!-- card container -->
+    <div class="container my-4">
+        <div id="cardContainer" class="row g-4 mt-1">
+
+            <!-- cards -->
+            <div class="card-info-placeholder card-info col-md-4" aria-hidden="true">
+                <div class="card bg-light shadow border border-0" style="max-width: 460px;">
+                    <div class="row g-0">
+                        <div class="col-lg-3 my-3 mx-2">
+                            <img class="img rounded mx-auto d-block" src="https://upload.wikimedia.org/wikipedia/commons/3/3f/Placeholder_view_vector.svg" alt="..." height="96" >
+                        </div>
+                        <div class="col-lg-7 ms-4 ps-sm-3">
+                            <div class="card-body">
+                                <h5 class="card-title placeholder-glow">
+                                    <span class="placeholder col-6"></span>
+                                </h5>
+                                <h5 class="card-text text-muted placeholder-glow">
+                                    <span class="placeholder col-4"></span>
+                                </h5>
+                                <p class="card-text placeholder-glow">
+                                    <span class="placeholder col-3 bg-secondary"></span>
+                                    <span class="placeholder col-4 bg-secondary"></span>
+                                  </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>       
+            <!-- end cards -->
+            
+            <!-- 404 -->
+            <div id="notFoundImage" style="display: none;">
+                <img class="img mx-auto d-block" src="./404.svg" alt="404" height="300" >
+            </div>
+            <!-- end 404 -->
+            
+        </div>
+    </div>
+    <!-- end card container -->
+
+    <!-- page navigation -->
+    <div id="pageNavigationContainer" class="position-sticky pt-2">
+    </div>
+    <!-- end page navigation -->
+
+    <!-- modal -->
+    <div id="modalInfo" class="modal-info modal fade mt-5" tabindex="-1" aria-labelledby="modalInfoLabel" aria-hidden="true">
+    </div>
+    <!-- end modal -->
+
+    <script>
+
+        window.onload = async () => {
+            const name = getQueryParam('name')
+            const pageNumber = parseInt(getQueryParam('page') || 1)
+            const pageSize = parseInt(getQueryParam('size') || 12)
+
+            if(name !== null) {
+                try {
+                    let pokemon = await fetchOneById(name)
+                    addCard(pokemon)
+                } catch(error) {
+                    show404PokemonNotFound()
+                }
+            } else {
+                let page = await fetchPage(pageNumber, pageSize)
+                page.results.forEach(pokemon => { addCard(pokemon) })
+                loadPageNavigation(page.pageInfo, pageSize)
+            }
+            
+            removeCardPlaceHolder()
+        }
+
+        function show404PokemonNotFound() {
+            var element = document.getElementById('notFoundImage')
+            element.style.removeProperty("display")
+        }
+
+        function removeCardPlaceHolder() {
+            const cards = document.querySelectorAll(".card-info-placeholder")
+            cards.forEach(el => el.remove())
+            
+        }
+
+        function loadPageNavigation(pageInfo, pageSize) {
+            let actualPage = `<li class="page-item active"><a class="page-link" aria-current="page" href="#">${pageInfo.pageNumber}</a></li>`
+            
+            let previousPages = ``
+            let nunberOfPrevious = Math.max(1, pageInfo.pageNumber -5)
+            if(pageInfo.hasPrevious) {
+                for(let i = nunberOfPrevious; i <= pageInfo.pageNumber -1; i++) {
+                    previousPages += `<li class="page-item"><a class="page-link" href="?page=${i}&size=${pageSize}">${i}</a></li>`
+                }
+            }            
+
+            let nextsPages = ``
+            let nunberOfNexts = Math.min(pageInfo.totalPages, pageInfo.pageNumber +5) + Math.max(5 - pageInfo.pageNumber, 0)
+            if(pageInfo.hasNext) {
+                for(let i = pageInfo.pageNumber +1; i <= nunberOfNexts; i++) {
+                    nextsPages += `<li class="page-item"><a class="page-link" href="?page=${i}&size=${pageSize}">${i}</a></li>`
+                }
+            }        
+
+            let pageNav = `
+                <nav aria-label="Page navigation">
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item ${pageInfo.hasPrevious ? '' : 'disabled'}">
+                            <a class="page-link" href="?page=${pageInfo.pageNumber -1}&size=${pageSize}">Previous</a>
+                        </li>
+                        ${previousPages}
+                        ${actualPage}
+                        ${nextsPages}
+                        <li class="page-item ${pageInfo.hasNext ? '' : 'disabled'}">
+                            <a class="page-link" href="?page=${pageInfo.pageNumber +1}&size=${pageSize}">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+            `
+            var pageNavigationContainer = document.getElementById("pageNavigationContainer")
+            pageNavigationContainer.innerHTML += pageNav
+        }
+  
+        function addCard(pokemon) {
+            let types = ``
+            pokemon.types.forEach(type => { 
+                let color = getPokemonTypeColor(type)
+                types += `<span class="badge text-bg-${color} me-1">${type}</span>`
+             })
+
+            let card = `
+                <div class="card-info col-md-4">
+                    <div id="card${pokemon.id}" class="card card-hover bg-light shadow border border-0" style="max-width: 460px;">
+                        <div class="row g-0">
+                            <div class="col-lg-3 my-3 ms-lg-3 me-3">
+                                <img class="img mx-auto d-block" src="${pokemon.officialImage}" alt="logo" height="96px" style="max-width:96px; min-width:"96px" width:100%; ">
+                            </div>
+                            <div class="col-lg-7">
+                                <div class="card-body">
+                                    <h5 class="card-title">${capitalize(pokemon.name)}</h5>
+                                    <h5 class="card-text"><small class="text-muted">#${pokemon.id}</small></h5>
+                                    <div>
+                                        ${types}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `
+            //
+            //let cardContainer = document.getElementById('cardContainer')
+            //cardContainer.innerHTML += card
+
+            //const fragment = document.createRange().createContextualFragment(card);
+            //document.getElementById('cardContainer').appendChild(fragment);
+            document.getElementById('cardContainer').insertAdjacentHTML('beforeend', card)
+            document.getElementById(`card${pokemon.id}`).addEventListener('click', () => { showModal(pokemon) });
+        }
+
+        function showModal(pokemon) {
+            let types = ``
+            pokemon.types.forEach(type => { 
+                types += `
+                    <div class="col-3">
+                        <span class="label badge text-bg-${getPokemonTypeColor(type)} rounded-5 py-1">${type}</span>
+                    </div>
+                `
+             })
+
+             let stats = ``
+             pokemon.stats
+                .filter(stat => stat.name !== 'special-attack')
+                .filter(stat => stat.name !== 'special-defense')
+                .forEach(stat => { 
+                    stats += `
+                        <div class="row justify-content-center">
+                            <div class="col-1 pb-0 me-3">
+                                <p class="mb-2">${stat.name}</p>
+                            </div>
+                            <div class="col-8 pt-1 ps-1 pb-0">
+                                <div class="progress">
+                                    <div class="progress-bar bg-secondary" role="progressbar" aria-label="${stat.name}" style="width: ${stat.level}%;" aria-valuenow="${stat.level}" aria-valuemin="0" aria-valuemax="100">${stat.level}/100</div>
+                                </div>
+                            </div>
+                        </div>
+                    `
+                })
+
+            const modalItem = document.getElementById('modalInfo');
+
+            modalItem.innerHTML = ` 
+                <div class="modal-dialog">
+                    <div class="modal-content rounded-4 shadow">
+                        <div class="modal-header border-0 pb-1">
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body text-center pt-1">
+                            <div class="" style="background-image: url('./blob.svg');">
+                                <img class="img mx-auto d-block" src="${pokemon.officialImage}" alt="logo" height="198px" style="max-width:198px; min-width:"198px" width:100%; ">
+                            </div>
+
+                            <h5 class="card-title my-3">${capitalize(pokemon.name)} <span class="text-muted fw-normal">#${pokemon.id}</span></h5>
+                            
+                            <div class="container text-center my-3">
+                                <div class="row justify-content-center">
+                                    ${types}
+                                </div>
+                            </div>
+                            
+                            <div class="container text-center my-3">
+                                <div class="row justify-content-center">
+                                    <div class="col-3">
+                                        <h5 class="card-title">${pokemon.height} Kg</h5>
+                                        <h6 class="card-text"><small class="text-muted">Height</small></h6>
+                                    </div>
+                                    <div class="col-3">
+                                        <h5 class="card-title">${pokemon.weight/100} M</h5>
+                                        <h6 class="card-text"><small class="text-muted">Weight</small></h6>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="container text-center my-3">
+                                ${stats}                                
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            `
+            
+            new bootstrap.Modal(modalItem).show()
+        }
+
+        function mapStat(stat) {
+            return ({ 
+                'hp': {'name':'HP', 'color':'danger', 'level':stat.base_stat}, 
+                'attack': {'name':'ATK', 'color': 'warning', 'level':stat.base_stat}, 
+                'defense': {'name':'DEF', 'color': 'primary', 'level':stat.base_stat}, 
+                'speed': {'name':'SPD', 'color': 'success', 'level':stat.base_stat}
+            })[stat.stat.name] ?? {'name':stat.stat.name, 'color': 'primary', 'level':stat.base_stat}
+        }
+
+        function mapToPokemon(data) {
+            return {
+                id: data.id,
+                name: data.name,
+                image: data.sprites.other.dream_world.front_default,
+                officialImage: data.sprites.other['official-artwork'].front_default,
+                weight: data.weight,
+                height: data.height,
+                types: data.types.map(el => el.type.name),
+                stats: data.stats.map(el => mapStat(el)),
+                abilities: []
+            }
+        }
+        
+        function getPokemonTypeColor(type){
+            return ({ 
+                'fire': 'danger', 
+                'grass': 'success', 
+                'poison': 'dark', 
+                'water': 'info', 
+                'flying': 'secondary',
+                'psychic': 'warning',
+                'bug': 'success'
+            })[type] ?? 'primary'
+        }
+
+        async function fetchOneById(id) {
+            const response = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`)
+
+            if (!response.ok) {
+                throw new Error(`Not found element with id ${id}`)
+            }
+            
+            const data = await response.json()
+            return mapToPokemon(data)
+        }
+
+        async function fetchOneByUrl(url) {
+            let response = await fetch(url)
+
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}`)
+            }
+            
+            const data = await response.json()
+            return mapToPokemon(data)
+        }
+        
+        async function fetchPage(page, limit = 9) {
+            const offset = limit * (page - 1)
+            const response = await fetch(`https://pokeapi.co/api/v2/pokemon?offset=${offset}&limit=${limit}`)
+
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}`)
+            }
+            
+            const data = await response.json()
+            const results = await Promise.all( 
+                data.results.map(async el => await fetchOneByUrl(el.url))
+            )
+
+            return {
+                pageInfo: {
+                    pageNumber: page,
+                    pageSize: results.length,
+                    totalElements: data.count,
+                    totalPages: Math.ceil(data.count / limit),
+                    hasNext: data.next !== null,
+                    hasPrevious: data.previous !== null
+                },                
+                results: results
+            }
+        }
+
+        function getQueryParam(name) {
+            try {
+                return window.location.search
+                .substring(1)
+                .split('&') 
+                .find(el => el.split('=')[0] === name)
+                .split('=')[1]
+            } catch(error) {
+                return null
+            }
+        }
+        
+        function capitalize(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1)
+        }
+    
+        // repeat(9, async (index) => {
+        //     let data = await fetchOneById(index);
+        //     console.log(index + ": " + data.name);
+        // })
+
+        // function repeat(number, callback) {
+        //     for(let i = 0; i < number; i++) {
+        //         callback(i)
+        //     }
+        // }
+    </script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
+  </body>
+</html>
